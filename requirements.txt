@@ -1,3 +1,5 @@
 urllib3
 requests
 mkdocs
+aiohttp
+aiodns

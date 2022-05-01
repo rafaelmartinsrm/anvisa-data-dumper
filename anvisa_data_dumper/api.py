@@ -1,9 +1,9 @@
 from email.policy import default
 from urllib.parse import urlencode
 from pathlib import Path
+import aiohttp
 import requests
 import time
-import os
 import json
 
 
@@ -132,3 +132,34 @@ class API:
                     time.sleep(10)
 
         return req
+
+    def _is_last_page(self, data: dict):
+        if "last" not in data:
+            raise Exception('The key "last" does not exist in response.')
+        return data["last"]
+
+    def _last_page_in_list(self, data_list: list):
+        return any([self._is_last_page(i) for i in data_list])
+
+    async def _request(self, filters: dict = {}):
+        start_time = time.time()
+        TIMEOUT = 30
+
+        self.current_filters.update(filters)
+        url = self.generate_request_url(filters=self.current_filters)
+        if self.DEBUG:
+            print(f"[DEBUG] Async Requesting {url}.")
+
+        while True:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        url, headers=self.headers, raise_for_status=True
+                    ) as response:
+                        json = await response.json()
+                        return json
+            except aiohttp.ClientError as e:
+                if time.time() > start_time + TIMEOUT:
+                    raise Exception(e)
+                else:
+                    time.sleep(3)
