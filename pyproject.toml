@@ -1,0 +1,9 @@
+[project]
+name = "anvisa-data-dumper"
+version = "0.1"
+dependencies = [
+    "urllib3"
+]
+
+[tool.setuptools.packages]
+find = {}
