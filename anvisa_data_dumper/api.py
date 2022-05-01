@@ -1,3 +1,4 @@
+from email.policy import default
 from urllib.parse import urlencode
 from pathlib import Path
 import requests
@@ -18,6 +19,7 @@ class API:
     initial_filters = {}
     current_filters = {}
     default_filters = {}
+    DEBUG = True
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -50,8 +52,11 @@ class API:
         print("Pruning is not implemented yet")
 
     def create_cache_file(self, extension: str):
+        cache_file = f"{self.cache_path}/{extension}.json"
+        if self.DEBUG:
+            print(f"[DEBUG] Creating {cache_file}.")
         try:
-            with open(f"{self.cache_path}/{extension}.json", "x") as f:
+            with open(cache_file, "x") as f:
                 f.close()
         except FileExistsError:
             pass
@@ -59,6 +64,8 @@ class API:
     def load_cache_file(self, extension: str) -> dict:
         cache_content = None
         cache_file = f"{self.cache_path}/{extension}.json"
+        if self.DEBUG:
+            print(f"[DEBUG] Reading {cache_file}.")
         with open(cache_file, "r", encoding="utf-8") as f:
             if f.read(1):
                 f.seek(0)
@@ -69,6 +76,8 @@ class API:
 
     def write_cache_file(self, data: dict, extension: str):
         cache_file = f"{self.cache_path}/{extension}.json"
+        if self.DEBUG:
+            print(f"[DEBUG] Writing {cache_file}.")
 
         with open(cache_file, "w", encoding="utf-8") as f:
             f.write(json.dumps(data, indent=4, sort_keys=False))
@@ -91,6 +100,8 @@ class API:
             "page": 1,
         }
         default_filters.update(filters)
+        if self.DEBUG:
+            print(f"[DEBUG] Creating URL for filters: {default_filters}.")
         # Use urllib.parse.urlencode
         encoded_args = urlencode(default_filters)
         return self.url + encoded_args
@@ -100,11 +111,15 @@ class API:
         TIMEOUT = 30
 
         req = None
+        url = self.generate_request_url(filters=self.current_filters)
+
+        if self.DEBUG:
+            print(f"[DEBUG] Requesting {url}.")
 
         while True:
             try:
                 # Verify is false since Intermediate are not available on consultas.anvisa.gov.br
-                req = requests.get(self.url, headers=self.headers, verify=False)
+                req = requests.get(url, headers=self.headers, verify=False)
                 break
             except (
                 requests.exceptions.Timeout,

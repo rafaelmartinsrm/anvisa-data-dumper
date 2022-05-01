@@ -15,7 +15,6 @@ class Drugs(API):
 
     def __init__(self, filters: dict = {}, cache: bool = True):
         self.cache = cache
-        self.url = self.generate_request_url(filters=self.current_filters)
 
     def dump(self, format: str, output_file: str = "drugs") -> None:
         if output_file == "drugs":
@@ -24,7 +23,7 @@ class Drugs(API):
         is_last = False
         while not is_last:
             self.write_cache_file(
-                data=self.initial_filters, extension="current_filters"
+                data=self.current_filters, extension="current_filters"
             )
 
             response = self.request().json()
