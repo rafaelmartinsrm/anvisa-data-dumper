@@ -1,5 +1,10 @@
 site_name: anvisa-data-dumper
 nav:
     - Home: index.md
+    - Drugs: drugs.md
     - About: about.md
-theme: readthedocs
+theme: 
+  name: readthedocs
+plugins:
+  - search
+  - mkdocstrings

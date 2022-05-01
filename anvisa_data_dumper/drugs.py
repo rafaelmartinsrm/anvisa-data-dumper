@@ -3,6 +3,8 @@ import os
 
 
 class Drugs(API):
+    """Drugs"""
+
     url = "https://consultas.anvisa.gov.br/api/consulta/medicamento/produtos/?"
     drugs = []
     cache_path = f"{os.getcwd()}/cache/drugs"
@@ -14,9 +16,21 @@ class Drugs(API):
     current_filters = {}
 
     def __init__(self, filters: dict = {}, cache: bool = True):
+        """initialization
+
+        Args:
+            filters (dict, optional): _description_. Defaults to {}.
+            cache (bool, optional): _description_. Defaults to True.
+        """
         self.cache = cache
 
     def dump(self, format: str, output_file: str = "drugs") -> None:
+        """dumps data
+
+        Args:
+            format (str): _description_
+            output_file (str, optional): _description_. Defaults to "drugs".
+        """
         if output_file == "drugs":
             output_file += "." + format
 
