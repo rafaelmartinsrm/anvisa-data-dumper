@@ -1,7 +1,9 @@
-from .api import API
-import os
 import asyncio
+import json
+import os
 import time
+
+from .api import API
 
 
 class Drugs(API):
@@ -10,28 +12,26 @@ class Drugs(API):
     url = "https://consultas.anvisa.gov.br/api/consulta/medicamento/produtos/?"
     drugs = []
     cache_path = f"{os.getcwd()}/cache/drugs"
-    default_filters = {
+    current_filters = {}
+    mandatory_filters = {
+        "count": 50,
         "page": 1,
         "filter[periodoPublicacaoFinal]": "2022-04-30T03:00:00.000Z",
     }
-    initial_filters = {}
-    current_filters = {}
 
     def __init__(self, filters: dict = {}, cache: bool = True):
-        """initialization
-
-        Args:
-            filters (dict, optional): _description_. Defaults to {}.
-            cache (bool, optional): _description_. Defaults to True.
-        """
         self.cache = cache
 
-    async def _adump(self, threads: int = 5):
+    async def _adump(self, threads):
         # Get initial page, if not, 1
         initial_page = self.current_filters["page"]
 
         is_last = False
         while not is_last:
+            self.write_cache_file(
+                data=self.current_filters, extension="current_filters"
+            )
+
             tasks = []
             for page_n in range(initial_page, initial_page + threads):
                 tasks.append(self._request(filters={"page": page_n}))
@@ -46,30 +46,50 @@ class Drugs(API):
 
             initial_page += threads - 1
 
-            time.sleep(3)
+            time.sleep(1)
 
-    def dump(self, format: str, output_file: str = "drugs") -> None:
-        """dumps data
+    def dump(self, threads: int = 4):
+        asyncio.run(self._adump(threads))
 
-        Args:
-            format (str): _description_
-            output_file (str, optional): _description_. Defaults to "drugs".
-        """
-        if output_file == "drugs":
-            output_file += "." + format
 
-        is_last = False
-        while not is_last:
-            self.write_cache_file(
-                data=self.current_filters, extension="current_filters"
+class DrugDetail(API):
+
+    url = "https://consultas.anvisa.gov.br/api/consulta/medicamento/produtos/"
+    cache_path = f"{os.getcwd()}/cache/drugs/details"
+    mandatory_filters = {}
+    current_filters = {}
+
+    def _load_page_file(self, file_path: str) -> list:
+        if self.DEBUG:
+            print(f"[DEBUG] Reading {file_path}.")
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            file_content = json.load(f)
+            f.close()
+
+        return file_content["content"]
+
+    async def _adump_products_from_file(self, file_path: str, threads: int = 4):
+        drugs = self._load_page_file(file_path)
+        tasks = []
+
+        for drug in drugs:
+            tasks.append(self._request(url_suffix=drug["processo"]["numero"]))
+
+        responses = []
+        for i in range(0, len(tasks), threads):
+            responses = await asyncio.gather(
+                *tasks[i : (i + threads)], return_exceptions=True
             )
+            for response in responses:
+                self.write_cache_file(response, response["processo"]["numero"])
 
-            response = self.request().json()
+            time.sleep(1)
 
-            if self.cache:
-                self.write_cache_file(
-                    data=response, extension=str(self.current_filters["page"])
-                )
+    def dump_products_from_file(self, file_path: str, threads: int = 4):
+        asyncio.run(self._adump_products_from_file(file_path, threads))
 
-            is_last = response["last"]
-            self.current_filters["page"] += 1
+    def dump(self, product_code: str):
+        self.url = self.url + product_code
+        response = asyncio.run(self._request())
+        print(response)

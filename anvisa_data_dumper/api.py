@@ -1,10 +1,10 @@
-from email.policy import default
-from urllib.parse import urlencode
+import json
+import time
 from pathlib import Path
+from urllib.parse import urlencode
+
 import aiohttp
 import requests
-import time
-import json
 
 
 class API:
@@ -19,6 +19,7 @@ class API:
     initial_filters = {}
     current_filters = {}
     default_filters = {}
+    mandatory_filters = {}
     DEBUG = True
 
     def __init_subclass__(cls, **kwargs):
@@ -27,8 +28,8 @@ class API:
             raise TypeError(f"Subclass must define class attribute 'url'")
 
         # Set initial filters based on subclass parameters
-        cls.initial_filters = cls.default_filters
-        cls.initial_filters.update(kwargs.get("initial_filters", {}))
+        cls.initial_filters = cls.mandatory_filters
+        cls.initial_filters.update(kwargs.get("filters", {}))
 
         # Create cache folder
         Path(cls.cache_path).mkdir(parents=True, exist_ok=True)
@@ -42,6 +43,9 @@ class API:
             cls.prune_cache(cls)
             cls.write_cache_file(
                 cls, data=cls.initial_filters, extension="initial_filters"
+            )
+            cls.write_cache_file(
+                cls, data=cls.initial_filters, extension="current_filters"
             )
             cls.current_filters = dict(cls.initial_filters)
         else:
@@ -95,15 +99,11 @@ class API:
         Returns:
             str: the generated url
         """
-        default_filters = {
-            "count": 50,
-            "page": 1,
-        }
-        default_filters.update(filters)
+        self.mandatory_filters.update(filters)
         if self.DEBUG:
-            print(f"[DEBUG] Creating URL for filters: {default_filters}.")
+            print(f"[DEBUG] Creating URL for filters: {self.mandatory_filters}.")
         # Use urllib.parse.urlencode
-        encoded_args = urlencode(default_filters)
+        encoded_args = urlencode(self.mandatory_filters)
         return self.url + encoded_args
 
     def request(self):
@@ -141,12 +141,16 @@ class API:
     def _last_page_in_list(self, data_list: list):
         return any([self._is_last_page(i) for i in data_list])
 
-    async def _request(self, filters: dict = {}):
+    async def _request(self, filters: dict = {}, url_suffix: str = ""):
         start_time = time.time()
         TIMEOUT = 30
 
         self.current_filters.update(filters)
         url = self.generate_request_url(filters=self.current_filters)
+
+        # Adds product code for DrugDetail
+        url += url_suffix
+
         if self.DEBUG:
             print(f"[DEBUG] Async Requesting {url}.")
 
