@@ -53,7 +53,9 @@ class Drugs(API):
 
 
 class DrugDetail(API):
-
+    """
+    Drug details: contains detailed information about the drug registration.
+    """
     url = "https://consultas.anvisa.gov.br/api/consulta/medicamento/produtos/"
     cache_path = f"{os.getcwd()}/cache/drugs/details"
     mandatory_filters = {}
@@ -87,6 +89,13 @@ class DrugDetail(API):
             time.sleep(1)
 
     def dump_products_from_file(self, file_path: str, threads: int = 4):
+        """
+        Fetches the details from drugs listed on the output file of the generated Drug.dump() JSON
+
+        Args:
+            file_path (str): input file with the list of drugs
+            threads (int, optional): number of simultaneous queries to ANVISAs website. Defaults to 4.
+        """        
         asyncio.run(self._adump_products_from_file(file_path, threads))
 
     def dump(self, product_code: str):
